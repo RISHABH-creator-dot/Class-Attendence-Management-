@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Added inline styles to header to ensure emerald background and white text -->
+<header style="background: #10b981 !important; background-image: linear-gradient(135deg, #10b981 0%, #059669 100%) !important; color: white !important; padding: 1.5rem 0; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="font-size: 2rem; font-weight: 700; margin: 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); color: white !important;">Attendify</h1>
+            <p style="font-size: 0.95rem; margin: 0; font-weight: 500; opacity: 0.9; color: white !important;">Professional Academic Management</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+            <span style="font-weight: 500; font-size: 0.95rem; color: white !important;">Welcome back, {{ user.display_name }}</span>
+            <a href="{{ url_for('dashboard') }}" style="background: rgba(255, 255, 255, 0.2) !important; color: white !important; border: 2px solid rgba(255, 255, 255, 0.3) !important; padding: 0.5rem 1.5rem; border-radius: 25px; cursor: pointer; font-weight: 500; font-size: 0.9rem; text-decoration: none; transition: all 0.3s ease;">Back to Dashboard</a>
+            <a href="{{ url_for('logout') }}" style="background: rgba(255, 255, 255, 0.2) !important; color: white !important; border: 2px solid rgba(255, 255, 255, 0.3) !important; padding: 0.5rem 1.5rem; border-radius: 25px; cursor: pointer; font-weight: 500; font-size: 0.9rem; text-decoration: none; transition: all 0.3s ease;">Logout</a>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2>Attendance Report</h2>
+                    <p>Class: {{ report.class_name }} | Date: {{ report.date }}</p>
+                </div>
+                <!-- Added Excel export button to report page -->
+                <a href="{{ url_for('export_excel', class_name=report.class_name) }}" 
+                   style="background: #10b981; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; transition: all 0.3s ease;"
+                   onmouseover="this.style.background='#059669'"
+                   onmouseout="this.style.background='#10b981'">
+                    📥 Export to Excel
+                </a>
+            </div>
+        </div>
+
+        {% if report.attendance %}
+        <div class="stats-grid">
+            <div class="stat-card present">
+                <h4>Present</h4>
+                <div class="number">{{ report.present_count }}</div>
+            </div>
+            <div class="stat-card absent">
+                <h4>Absent</h4>
+                <div class="number">{{ report.absent_count }}</div>
+            </div>
+            <div class="stat-card total">
+                <h4>Total</h4>
+                <div class="number">{{ report.total_students }}</div>
+            </div>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Roll No</th>
+                    <th>Student Name</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in report.students %}
+                <tr>
+                    <td>{{ student.roll_no }}</td>
+                    <td>{{ student.name }}</td>
+                    <td>
+                        {% set status = report.attendance.get(student.roll_no, 'absent') %}
+                        <span class="status-badge {{ status }}">
+                            {{ status.title() }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="text-align: center; color: #718096; padding: 2rem;">No attendance data found for selected class and date.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

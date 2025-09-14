@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Added inline styles to header to ensure emerald background and white text -->
+<header style="background: #10b981 !important; background-image: linear-gradient(135deg, #10b981 0%, #059669 100%) !important; color: white !important; padding: 1.5rem 0; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="font-size: 2rem; font-weight: 700; margin: 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); color: white !important;">Attendify</h1>
+            <p style="font-size: 0.95rem; margin: 0; font-weight: 500; opacity: 0.9; color: white !important;">Professional Academic Management</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+            <span style="font-weight: 500; font-size: 0.95rem; color: white !important;">Welcome back, {{ user.display_name }}</span>
+            <span style="background: rgba(255, 255, 255, 0.15) !important; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 500; border: 1px solid rgba(255, 255, 255, 0.2); color: white !important;">{{ current_date }}</span>
+            <a href="{{ url_for('logout') }}" style="background: rgba(255, 255, 255, 0.2) !important; color: white !important; border: 2px solid rgba(255, 255, 255, 0.3) !important; padding: 0.5rem 1.5rem; border-radius: 25px; cursor: pointer; font-weight: 500; font-size: 0.9rem; text-decoration: none; transition: all 0.3s ease;">Logout</a>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'error' if category == 'error' else 'success' }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <nav class="nav-tabs">
+        <a href="#attendance" class="nav-tab active" onclick="switchTab('attendance', this)">Mark Attendance</a>
+        <a href="#manage" class="nav-tab" onclick="switchTab('manage', this)">Manage Classes</a>
+        <a href="#reports" class="nav-tab" onclick="switchTab('reports', this)">View Reports</a>
+    </nav>
+
+    <!-- Attendance Tab -->
+    <div id="attendance" class="tab-content active">
+        <div class="card">
+            <div class="card-header">
+                <h2>Mark Attendance</h2>
+                <p>Select class and date to mark student attendance</p>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Select Class</label>
+                    <select id="classSelect" class="form-control" onchange="loadStudents()">
+                        <option value="">Choose a class...</option>
+                        {% for class_name in classes.keys() %}
+                            <option value="{{ class_name }}">{{ class_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="attendanceDate" class="form-control" value="{{ current_date }}" onchange="loadStudents()">
+                </div>
+            </div>
+
+            <div id="studentsList" style="display: none;">
+                <form method="POST" action="{{ url_for('mark_attendance') }}">
+                    <input type="hidden" name="class_name" id="selectedClass">
+                    <input type="hidden" name="date" id="selectedDate">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="color: #2d3748; margin: 0;">Students List</h3>
+                        <div style="display: flex; gap: 1rem;">
+                            <span style="color: #48bb78; font-weight: 500;">Present: <span id="presentCount">0</span></span>
+                            <span style="color: #f56565; font-weight: 500;">Absent: <span id="absentCount">0</span></span>
+                        </div>
+                    </div>
+                    
+                    <div id="studentsContainer"></div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Save Attendance</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Classes Tab -->
+    <div id="manage" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <h2>Manage Classes</h2>
+                <p>Create classes and manage student lists</p>
+            </div>
+
+            <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <h3 style="color: #2d3748; margin-bottom: 1rem;">Create New Class</h3>
+                <form method="POST" action="{{ url_for('create_class') }}">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Class Name</label>
+                            <input type="text" name="class_name" class="form-control" placeholder="e.g., B.Tech Computer Science" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Subject</label>
+                            <input type="text" name="subject" class="form-control" placeholder="e.g., Data Structures" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Class</button>
+                </form>
+            </div>
+
+            {% for class_name, class_data in classes.items() %}
+            <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #10b981;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <h3 style="color: #2d3748; margin: 0 0 0.5rem 0;">{{ class_name }}</h3>
+                        <p style="color: #718096; margin: 0; font-size: 0.9rem;">Subject: {{ class_data.subject }} | Students: {{ class_data.students|length }}</p>
+                    </div>
+                    <form method="POST" action="{{ url_for('delete_class') }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this class?')">
+                        <input type="hidden" name="class_name" value="{{ class_name }}">
+                        <button type="submit" class="btn btn-danger">Delete Class</button>
+                    </form>
+                </div>
+                
+                <div>
+                    <h4 style="color: #2d3748; margin-bottom: 0.75rem;">Manage Students</h4>
+                    <form method="POST" action="{{ url_for('add_student') }}" style="margin-bottom: 1rem;">
+                        <input type="hidden" name="class_name" value="{{ class_name }}">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <input type="text" name="student_name" class="form-control" placeholder="Student Name" required>
+                            </div>
+                            <div class="form-group">
+                                <input type="text" name="roll_no" class="form-control" placeholder="Roll Number" required>
+                            </div>
+                            <div class="form-group" style="flex: 0 0 auto;">
+                                <button type="submit" class="btn btn-primary">Add Student</button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div>
+                        {% for student in class_data.students %}
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 4px; margin-bottom: 0.5rem;">
+                            <span style="color: #2d3748;">{{ student.name }} (Roll: {{ student.roll_no }})</span>
+                            <form method="POST" action="{{ url_for('delete_student') }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this student?')">
+                                <input type="hidden" name="class_name" value="{{ class_name }}">
+                                <input type="hidden" name="roll_no" value="{{ student.roll_no }}">
+                                <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Delete</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Reports Tab -->
+    <div id="reports" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <h2>Attendance Reports</h2>
+                <p>View detailed attendance statistics and reports</p>
+            </div>
+
+            <form method="POST" action="{{ url_for('generate_report') }}">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Select Class</label>
+                        <select name="class_name" class="form-control" required>
+                            <option value="">Choose a class...</option>
+                            {% for class_name in classes.keys() %}
+                                <option value="{{ class_name }}">{{ class_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" name="date" class="form-control" value="{{ current_date }}" required>
+                    </div>
+                    <div class="form-group" style="flex: 0 0 auto;">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn btn-primary">Generate Report</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Added Excel export section -->
+            <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; margin-top: 2rem; border-left: 4px solid #10b981;">
+                <h3 style="color: #2d3748; margin-bottom: 1rem;">📊 Export to Excel</h3>
+                <p style="color: #718096; margin-bottom: 1rem;">Download complete attendance data for any class in Excel format</p>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Select Class for Export</label>
+                        <select id="exportClassSelect" class="form-control">
+                            <option value="">Choose a class...</option>
+                            {% for class_name in classes.keys() %}
+                                <option value="{{ class_name }}">{{ class_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 0 0 auto;">
+                        <label>&nbsp;</label>
+                        <button onclick="exportToExcel()" class="btn" style="background: #10b981; color: white; border: none;">
+                            📥 Download Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchTab(tabName, element) {
+    // Remove active class from all tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Add active class to clicked tab
+    element.classList.add('active');
+    
+    // Show selected tab content
+    document.getElementById(tabName).classList.add('active');
+}
+
+async function loadStudents() {
+    const className = document.getElementById('classSelect').value;
+    const date = document.getElementById('attendanceDate').value;
+    
+    if (!className || !date) {
+        document.getElementById('studentsList').style.display = 'none';
+        return;
+    }
+    
+    try {
+        const studentsResponse = await fetch(`/get_students/${encodeURIComponent(className)}`);
+        const students = await studentsResponse.json();
+        
+        const attendanceResponse = await fetch(`/get_attendance/${encodeURIComponent(className)}/${date}`);
+        const attendance = await attendanceResponse.json();
+        
+        const container = document.getElementById('studentsContainer');
+        container.innerHTML = '';
+        
+        students.forEach(student => {
+            const status = attendance[student.roll_no] || '';
+            const studentDiv = document.createElement('div');
+            studentDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f7fafc; border-radius: 8px; margin-bottom: 0.5rem;';
+            
+            studentDiv.innerHTML = `
+                <div>
+                    <span style="color: #2d3748; font-weight: 500; display: block;">${student.name}</span>
+                    <span style="color: #718096; font-size: 0.9rem;">Roll: ${student.roll_no}</span>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="radio" name="${student.roll_no}" value="present" ${status === 'present' ? 'checked' : ''} onchange="updateStats()">
+                        <span style="background: #48bb78; color: white; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.9rem;">Present</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="radio" name="${student.roll_no}" value="absent" ${status === 'absent' ? 'checked' : ''} onchange="updateStats()">
+                        <span style="background: #f56565; color: white; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.9rem;">Absent</span>
+                    </label>
+                </div>
+            `;
+            
+            container.appendChild(studentDiv);
+        });
+        
+        document.getElementById('selectedClass').value = className;
+        document.getElementById('selectedDate').value = date;
+        document.getElementById('studentsList').style.display = 'block';
+        
+        updateStats();
+        
+    } catch (error) {
+        console.error('Error loading students:', error);
+    }
+}
+
+function updateStats() {
+    const presentInputs = document.querySelectorAll('input[value="present"]:checked');
+    const absentInputs = document.querySelectorAll('input[value="absent"]:checked');
+    
+    document.getElementById('presentCount').textContent = presentInputs.length;
+    document.getElementById('absentCount').textContent = absentInputs.length;
+}
+
+function exportToExcel() {
+    const className = document.getElementById('exportClassSelect').value;
+    
+    if (!className) {
+        alert('Please select a class to export');
+        return;
+    }
+    
+    // Open export URL in new window to trigger download
+    window.open(`/export_excel/${encodeURIComponent(className)}`, '_blank');
+}
+</script>
+{% endblock %}

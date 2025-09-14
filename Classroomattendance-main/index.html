@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendify - Classroom Attendance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .emerald-header {
+            background-color: #10b981 !important;
+            background: #10b981 !important;
+            color: white !important;
+        }
+        
+        .emerald-header * {
+            color: white !important;
+        }
+        
+        .white-text {
+            color: white !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem;">
+            <div style="text-align: center; color: white;">
+                <h1 style="font-size: 3rem; margin-bottom: 1rem;">Loading...</h1>
+                <p>Please wait while the application loads.</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Teacher credentials
+        const teachers = [
+          { username: "teacher1", password: "123456", name: "Dr. Ahmad Hassan" },
+          { username: "teacher2", password: "123456", name: "Prof. Sarah Khan" },
+          { username: "admin", password: "admin123", name: "Admin User" },
+        ]
+
+        // Global state
+        let currentUser = null
+        let currentTab = "attendance"
+        let classes = {}
+        let attendanceData = {}
+
+        // Initialize the application
+        document.addEventListener("DOMContentLoaded", function() {
+          loadDataFromStorage()
+          checkLoginStatus()
+        })
+
+        // Check if user is already logged in
+        function checkLoginStatus() {
+          const savedUser = localStorage.getItem("currentUser")
+          if (savedUser) {
+            currentUser = JSON.parse(savedUser)
+            showDashboard()
+          } else {
+            showLogin()
+          }
+        }
+
+        // Show login screen
+        function showLogin() {
+          const app = document.getElementById("app")
+          app.innerHTML = `
+            <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem;">
+              <div style="background: white; padding: 3rem; border-radius: 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15); width: 100%; max-width: 400px;">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                  <h1 style="color: #2d3748; font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem;">Attendify</h1>
+                  <p style="color: #718096; font-size: 1rem;">Professional Academic Management</p>
+                </div>
+                <form id="loginForm" style="margin-bottom: 2rem;">
+                  <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 500;">Username</label>
+                    <input type="text" id="username" name="username" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; box-sizing: border-box;">
+                  </div>
+                  <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 500;">Password</label>
+                    <input type="password" id="password" name="password" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; box-sizing: border-box;">
+                  </div>
+                  <button type="submit" style="width: 100%; padding: 0.75rem; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">Login</button>
+                </form>
+                <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #10b981;">
+                  <h3 style="color: #2d3748; font-size: 1rem; margin-bottom: 0.75rem;">Demo Credentials:</h3>
+                  <p style="color: #4a5568; font-size: 0.9rem; margin-bottom: 0.5rem;"><strong>Username:</strong> teacher1 | <strong>Password:</strong> 123456</p>
+                  <p style="color: #4a5568; font-size: 0.9rem; margin-bottom: 0.5rem;"><strong>Username:</strong> admin | <strong>Password:</strong> admin123</p>
+                </div>
+              </div>
+            </div>
+          `
+
+          // Add login form event listener
+          document.getElementById("loginForm").addEventListener("submit", handleLogin)
+        }
+
+        // Handle login
+        function handleLogin(e) {
+          e.preventDefault()
+
+          const username = document.getElementById("username").value.trim()
+          const password = document.getElementById("password").value.trim()
+
+          const teacher = teachers.find(function(t) { return t.username === username && t.password === password })
+
+          if (teacher) {
+            const teacherName = prompt("Welcome! Please enter your name for display:", teacher.name)
+            
+            if (teacherName && teacherName.trim()) {
+              currentUser = Object.assign({}, teacher, { displayName: teacherName.trim() })
+              localStorage.setItem("currentUser", JSON.stringify(currentUser))
+              showDashboard()
+            } else {
+              // If no name provided, use default name
+              currentUser = Object.assign({}, teacher, { displayName: teacher.name })
+              localStorage.setItem("currentUser", JSON.stringify(currentUser))
+              showDashboard()
+            }
+          } else {
+            alert("Invalid username or password")
+          }
+        }
+
+        // Show main dashboard
+        function showDashboard() {
+          const app = document.getElementById("app")
+          app.innerHTML = `
+            <div style="background-color: #10b981 !important; color: white !important; padding: 1.5rem 0; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);">
+              <div style="max-width: 1200px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                  <h1 style="color: white !important; font-size: 2rem; font-weight: 700; margin: 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">Attendify</h1>
+                  <p style="color: white !important; font-size: 0.95rem; margin: 0; font-weight: 500; opacity: 0.9;">Professional Academic Management</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                  <span style="color: white !important; font-weight: 500; font-size: 0.95rem;">Welcome back, ${currentUser.displayName}</span>
+                  <span style="color: white !important; background: rgba(255, 255, 255, 0.15); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 500; border: 1px solid rgba(255, 255, 255, 0.2);">${new Date().toLocaleDateString()}</span>
+                  <button onclick="logout()" style="background: rgba(255, 255, 255, 0.2); color: white !important; border: 2px solid rgba(255, 255, 255, 0.3); padding: 0.5rem 1.5rem; border-radius: 25px; cursor: pointer; font-weight: 500; font-size: 0.9rem;">Logout</button>
+                </div>
+              </div>
+            </div>
+
+            <div style="max-width: 1200px; margin: 2rem auto; padding: 0 2rem;">
+              <nav style="display: flex; background: white; border-radius: 12px; padding: 0.5rem; margin-bottom: 2rem; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); gap: 0.5rem;">
+                <button class="tab-btn active" onclick="switchTab('attendance')" style="flex: 1; padding: 0.75rem 1.5rem; border: none; background: #10b981; color: white; border-radius: 8px; cursor: pointer; font-weight: 500; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">Mark Attendance</button>
+                <button class="tab-btn" onclick="switchTab('manage')" style="flex: 1; padding: 0.75rem 1.5rem; border: none; background: transparent; color: #718096; border-radius: 8px; cursor: pointer; font-weight: 500;">Manage Classes</button>
+                <button class="tab-btn" onclick="switchTab('reports')" style="flex: 1; padding: 0.75rem 1.5rem; border: none; background: transparent; color: #718096; border-radius: 8px; cursor: pointer; font-weight: 500;">View Reports</button>
+              </nav>
+
+              <div id="attendanceTab" class="tab-content active">
+                <div style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
+                  <div style="margin-bottom: 2rem;">
+                    <h2 style="color: #2d3748; font-size: 1.8rem; font-weight: 600; margin-bottom: 0.5rem;">Mark Attendance</h2>
+                    <p style="color: #718096;">Select class and date to mark student attendance</p>
+                  </div>
+                  
+                  <div style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                      <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 500;">Select Class</label>
+                      <select id="classSelect" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
+                        <option value="">Choose a class...</option>
+                      </select>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                      <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 500;">Date</label>
+                      <input type="date" id="attendanceDate" value="${new Date().toISOString().split("T")[0]}" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
+                    </div>
+                  </div>
+
+                  <div id="studentsList" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                      <h3 style="color: #2d3748; margin: 0;">Students List</h3>
+                      <div style="display: flex; gap: 1rem;">
+                        <span style="color: #48bb78; font-weight: 500;">Present: <span id="presentCount">0</span></span>
+                        <span style="color: #f56565; font-weight: 500;">Absent: <span id="absentCount">0</span></span>
+                      </div>
+                    </div>
+                    <div id="studentsContainer"></div>
+                    <button onclick="saveAttendance()" style="width: 100%; padding: 0.75rem; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 1rem;">Save Attendance</button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="manageTab" class="tab-content" style="display: none;">
+                <div style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
+                  <div style="margin-bottom: 2rem;">
+                    <h2 style="color: #2d3748; font-size: 1.8rem; font-weight: 600; margin-bottom: 0.5rem;">Manage Classes</h2>
+                    <p style="color: #718096;">Create classes and manage student lists</p>
+                  </div>
+
+                  <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                    <h3 style="color: #2d3748; margin-bottom: 1rem;">Create New Class</h3>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                      <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 500;">Class Name</label>
+                        <input type="text" id="newClassName" placeholder="e.g., B.Tech Computer Science" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; box-sizing: border-box;">
+                      </div>
+                      <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 500;">Subject</label>
+                        <input type="text" id="newClassSubject" placeholder="e.g., Data Structures" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; box-sizing: border-box;">
+                      </div>
+                    </div>
+                    <button onclick="createClass()" style="padding: 0.75rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">Create Class</button>
+                  </div>
+
+                  <div id="classesList"></div>
+                </div>
+              </div>
+
+              <div id="reportsTab" class="tab-content" style="display: none;">
+                <div style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
+                  <div style="margin-bottom: 2rem;">
+                    <h2 style="color: #2d3748; font-size: 1.8rem; font-weight: 600; margin-bottom: 0.5rem;">Attendance Reports</h2>
+                    <p style="color: #718096;">View detailed attendance statistics and reports</p>
+                  </div>
+
+                  <div style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: end;">
+                    <div style="flex: 1; min-width: 200px;">
+                      <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 500;">Select Class</label>
+                      <select id="reportClassSelect" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
+                        <option value="">Choose a class...</option>
+                      </select>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                      <label style="display: block; margin-bottom: 0.5rem; color: #4a5568; font-weight: 500;">Date</label>
+                      <input type="date" id="reportDate" value="${new Date().toISOString().split("T")[0]}" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
+                    </div>
+                    <button onclick="generateReport()" style="padding: 0.75rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">Generate Report</button>
+                  </div>
+
+                  <div id="reportResults" style="display: none;"></div>
+                </div>
+              </div>
+            </div>
+          `
+
+          // Apply emerald background to header after DOM creation
+          setTimeout(function() {
+            const headerDiv = document.querySelector('div[style*="background-color: #10b981"]')
+            if (headerDiv) {
+              headerDiv.style.setProperty('background-color', '#10b981', 'important')
+              headerDiv.style.setProperty('background', '#10b981', 'important')
+              headerDiv.classList.add('emerald-header')
+              
+              // Force white color on all text elements
+              const textElements = headerDiv.querySelectorAll('h1, p, span, button')
+              textElements.forEach(function(el) {
+                el.style.setProperty('color', 'white', 'important')
+                el.classList.add('white-text')
+              })
+            }
+          }, 100)
+
+          initializeDashboardEventListeners()
+          updateClassSelects()
+        }
+
+        // Switch between tabs
+        function switchTab(tabName) {
+          currentTab = tabName
+
+          // Update tab buttons
+          const tabBtns = document.querySelectorAll(".tab-btn")
+          for (let i = 0; i < tabBtns.length; i++) {
+            tabBtns[i].style.background = "transparent"
+            tabBtns[i].style.color = "#718096"
+            tabBtns[i].style.boxShadow = "none"
+          }
+
+          // Update tab content
+          const tabContents = document.querySelectorAll(".tab-content")
+          for (let i = 0; i < tabContents.length; i++) {
+            tabContents[i].style.display = "none"
+          }
+
+          // Show selected tab
+          const activeBtn = event.target
+          activeBtn.style.background = "#10b981"
+          activeBtn.style.color = "white"
+          activeBtn.style.boxShadow = "0 4px 15px rgba(16, 185, 129, 0.3)"
+
+          document.querySelector("#" + tabName + "Tab").style.display = "block"
+        }
+
+        // Dashboard Event Listeners
+        function initializeDashboardEventListeners() {
+          const classSelect = document.getElementById("classSelect")
+          if (classSelect) {
+            classSelect.addEventListener("change", loadStudentsForAttendance)
+          }
+        }
+
+        // Load data from localStorage
+        function loadDataFromStorage() {
+          const savedClasses = localStorage.getItem("attendify_classes")
+          const savedAttendance = localStorage.getItem("attendify_attendance")
+
+          if (savedClasses) {
+            classes = JSON.parse(savedClasses)
+          }
+
+          if (savedAttendance) {
+            attendanceData = JSON.parse(savedAttendance)
+          }
+        }
+
+        // Save data to localStorage
+        function saveDataToStorage() {
+          localStorage.setItem("attendify_classes", JSON.stringify(classes))
+          localStorage.setItem("attendify_attendance", JSON.stringify(attendanceData))
+        }
+
+        // Update class select dropdowns
+        function updateClassSelects() {
+          const classSelects = ["classSelect", "reportClassSelect"]
+
+          for (let i = 0; i < classSelects.length; i++) {
+            const selectId = classSelects[i]
+            const select = document.getElementById(selectId)
+            if (select) {
+              select.innerHTML = '<option value="">Choose a class...</option>'
+              const classNames = Object.keys(classes)
+              for (let j = 0; j < classNames.length; j++) {
+                const className = classNames[j]
+                const option = document.createElement("option")
+                option.value = className
+                option.textContent = className
+                select.appendChild(option)
+              }
+            }
+          }
+
+          updateClassesList()
+        }
+
+        // Create new class
+        function createClass() {
+          const className = document.getElementById("newClassName").value.trim()
+          const subject = document.getElementById("newClassSubject").value.trim()
+
+          if (!className || !subject) {
+            alert("Please fill in all fields")
+            return
+          }
+
+          if (classes[className]) {
+            alert("Class already exists")
+            return
+          }
+
+          classes[className] = {
+            subject: subject,
+            students: [],
+          }
+
+          saveDataToStorage()
+          updateClassSelects()
+
+          // Clear form
+          document.getElementById("newClassName").value = ""
+          document.getElementById("newClassSubject").value = ""
+
+          alert("Class created successfully!")
+        }
+
+        // Update classes list in manage tab
+        function updateClassesList() {
+          const classesList = document.getElementById("classesList")
+          if (!classesList) return
+
+          classesList.innerHTML = ""
+
+          const classNames = Object.keys(classes)
+          for (let i = 0; i < classNames.length; i++) {
+            const className = classNames[i]
+            const classCard = document.createElement("div")
+            classCard.style.cssText =
+              "background: #f7fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #10b981;"
+            
+            const students = classes[className].students
+            let studentsHTML = ""
+            for (let j = 0; j < students.length; j++) {
+              const student = students[j]
+              studentsHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 4px; margin-bottom: 0.5rem;">
+                  <span style="color: #2d3748;">${student.name} (Roll: ${student.rollNo})</span>
+                  <button onclick="deleteStudent('${className}', '${student.rollNo}')" style="background: #f56565; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Delete</button>
+                </div>
+              `
+            }
+
+            classCard.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                  <h3 style="color: #2d3748; margin: 0 0 0.5rem 0;">${className}</h3>
+                  <p style="color: #718096; margin: 0; font-size: 0.9rem;">Subject: ${classes[className].subject} | Students: ${classes[className].students.length}</p>
+                </div>
+                <button onclick="deleteClass('${className}')" style="background: #f56565; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Delete Class</button>
+              </div>
+              <div>
+                <h4 style="color: #2d3748; margin-bottom: 0.75rem;">Manage Students</h4>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                  <input type="text" id="studentName_${className.replace(/\s+/g, "_")}" placeholder="Student Name" style="flex: 1; min-width: 150px; padding: 0.5rem; border: 2px solid #e2e8f0; border-radius: 6px;">
+                  <input type="text" id="rollNo_${className.replace(/\s+/g, "_")}" placeholder="Roll Number" style="flex: 1; min-width: 100px; padding: 0.5rem; border: 2px solid #e2e8f0; border-radius: 6px;">
+                  <button onclick="addStudent('${className}')" style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">Add Student</button>
+                </div>
+                <div>
+                  ${studentsHTML}
+                </div>
+              </div>
+            `
+            classesList.appendChild(classCard)
+          }
+        }
+
+        // Add student to class
+        function addStudent(className) {
+          const nameInput = document.getElementById("studentName_" + className.replace(/\s+/g, "_"))
+          const rollInput = document.getElementById("rollNo_" + className.replace(/\s+/g, "_"))
+
+          const name = nameInput.value.trim()
+          const rollNo = rollInput.value.trim()
+
+          if (!name || !rollNo) {
+            alert("Please fill in all fields")
+            return
+          }
+
+          // Check if roll number already exists
+          const existingStudent = classes[className].students.find(function(s) { return s.rollNo === rollNo })
+          if (existingStudent) {
+            alert("Roll number already exists")
+            return
+          }
+
+          classes[className].students.push({ name: name, rollNo: rollNo })
+          saveDataToStorage()
+          updateClassesList()
+
+          // Clear inputs
+          nameInput.value = ""
+          rollInput.value = ""
+
+          alert("Student added successfully!")
+        }
+
+        // Delete student from class
+        function deleteStudent(className, rollNo) {
+          if (confirm("Are you sure you want to delete this student?")) {
+            classes[className].students = classes[className].students.filter(function(s) { return s.rollNo !== rollNo })
+            saveDataToStorage()
+            updateClassesList()
+          }
+        }
+
+        // Delete class
+        function deleteClass(className) {
+          if (confirm("Are you sure you want to delete the class \"" + className + "\"?")) {
+            delete classes[className]
+            saveDataToStorage()
+            updateClassSelects()
+          }
+        }
+
+        // Load students for attendance marking
+        function loadStudentsForAttendance() {
+          const className = document.getElementById("classSelect").value
+          const studentsList = document.getElementById("studentsList")
+
+          if (!className) {
+            studentsList.style.display = "none"
+            return
+          }
+
+          const students = classes[className] ? classes[className].students : []
+          const studentsContainer = document.getElementById("studentsContainer")
+
+          studentsContainer.innerHTML = ""
+
+          for (let i = 0; i < students.length; i++) {
+            const student = students[i]
+            const studentCard = document.createElement("div")
+            studentCard.style.cssText =
+              "display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f7fafc; border-radius: 8px; margin-bottom: 0.5rem;"
+            studentCard.innerHTML = `
+              <div>
+                <span style="color: #2d3748; font-weight: 500; display: block;">${student.name}</span>
+                <span style="color: #718096; font-size: 0.9rem;">Roll: ${student.rollNo}</span>
+              </div>
+              <div style="display: flex; gap: 0.5rem;">
+                <button class="attendance-btn present-btn" onclick="markAttendance('${student.rollNo}', 'present', this)" style="background: #48bb78; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Present</button>
+                <button class="attendance-btn absent-btn" onclick="markAttendance('${student.rollNo}', 'absent', this)" style="background: #f56565; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Absent</button>
+              </div>
+            `
+            studentsContainer.appendChild(studentCard)
+          }
+
+          studentsList.style.display = "block"
+          loadExistingAttendance()
+          updateAttendanceStats()
+        }
+
+        // Mark attendance for student
+        function markAttendance(rollNo, status, button) {
+          const card = button.parentNode.parentNode
+          const buttons = card.querySelectorAll(".attendance-btn")
+
+          // Remove active class from all buttons in this card
+          for (let i = 0; i < buttons.length; i++) {
+            buttons[i].style.opacity = "0.6"
+          }
+
+          // Add active class to clicked button
+          button.style.opacity = "1"
+
+          // Store attendance
+          const className = document.getElementById("classSelect").value
+          const date = document.getElementById("attendanceDate").value
+          const key = className + "_" + date
+
+          if (!attendanceData[key]) {
+            attendanceData[key] = {}
+          }
+
+          attendanceData[key][rollNo] = status
+          updateAttendanceStats()
+        }
+
+        // Update attendance statistics
+        function updateAttendanceStats() {
+          const className = document.getElementById("classSelect").value
+          const date = document.getElementById("attendanceDate").value
+          const key = className + "_" + date
+
+          const attendance = attendanceData[key] || {}
+          const attendanceValues = Object.keys(attendance).map(function(k) { return attendance[k] })
+          const presentCount = attendanceValues.filter(function(status) { return status === "present" }).length
+          const absentCount = attendanceValues.filter(function(status) { return status === "absent" }).length
+
+          const presentElement = document.getElementById("presentCount")
+          const absentElement = document.getElementById("absentCount")
+
+          if (presentElement) presentElement.textContent = presentCount
+          if (absentElement) absentElement.textContent = absentCount
+        }
+
+        // Load existing attendance
+        function loadExistingAttendance() {
+          const className = document.getElementById("classSelect").value
+          const date = document.getElementById("attendanceDate").value
+          const key = className + "_" + date
+
+          const attendance = attendanceData[key] || {}
+
+          // Apply existing attendance to buttons
+          const rollNos = Object.keys(attendance)
+          for (let i = 0; i < rollNos.length; i++) {
+            const rollNo = rollNos[i]
+            const status = attendance[rollNo]
+            const buttons = document.querySelectorAll("[onclick*=\"'" + rollNo + "'\"]")
+            for (let j = 0; j < buttons.length; j++) {
+              const btn = buttons[j]
+              if (btn.onclick.toString().indexOf("'" + status + "'") !== -1) {
+                btn.style.opacity = "1"
+              } else {
+                btn.style.opacity = "0.6"
+              }
+            }
+          }
+        }
+
+        // Save attendance
+        function saveAttendance() {
+          saveDataToStorage()
+          alert("Attendance saved successfully!")
+        }
+
+        // Generate report
+        function generateReport() {
+          const className = document.getElementById("reportClassSelect").value
+          const date = document.getElementById("reportDate").value
+
+          if (!className || !date) {
+            alert("Please select class and date")
+            return
+          }
+
+          const key = className + "_" + date
+          const attendance = attendanceData[key]
+          const students = classes[className] ? classes[className].students : []
+
+          const reportResults = document.getElementById("reportResults")
+
+          if (!attendance || Object.keys(attendance).length === 0) {
+            reportResults.innerHTML =
+              '<p style="text-align: center; color: #718096; padding: 2rem;">No attendance data found for selected class and date.</p>'
+            reportResults.style.display = "block"
+            return
+          }
+
+          const attendanceValues = Object.keys(attendance).map(function(k) { return attendance[k] })
+          const presentCount = attendanceValues.filter(function(status) { return status === "present" }).length
+          const absentCount = attendanceValues.filter(function(status) { return status === "absent" }).length
+
+          let studentsHTML = ""
+          for (let i = 0; i < students.length; i++) {
+            const student = students[i]
+            const status = attendance[student.rollNo] || "absent"
+            const statusColor = status === "present" ? "#c6f6d5" : "#fed7d7"
+            const textColor = status === "present" ? "#22543d" : "#742a2a"
+            studentsHTML += `
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 1rem;">${student.rollNo}</td>
+                <td style="padding: 1rem;">${student.name}</td>
+                <td style="padding: 1rem;">
+                  <span style="background: ${statusColor}; color: ${textColor}; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">
+                    ${status.charAt(0).toUpperCase() + status.slice(1)}
+                  </span>
+                </td>
+              </tr>
+            `
+          }
+
+          const reportHTML = `
+            <div style="margin-bottom: 2rem;">
+              <h3 style="color: #2d3748; margin-bottom: 0.5rem;">Attendance Report</h3>
+              <p style="color: #718096;">Class: ${className} | Date: ${date}</p>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+              <div style="background: #c6f6d5; padding: 1.5rem; border-radius: 8px; text-align: center;">
+                <h4 style="color: #22543d; margin: 0 0 0.5rem 0; font-size: 0.9rem;">Present</h4>
+                <span style="color: #22543d; font-size: 2rem; font-weight: 700;">${presentCount}</span>
+              </div>
+              <div style="background: #fed7d7; padding: 1.5rem; border-radius: 8px; text-align: center;">
+                <h4 style="color: #742a2a; margin: 0 0 0.5rem 0; font-size: 0.9rem;">Absent</h4>
+                <span style="color: #742a2a; font-size: 2rem; font-weight: 700;">${absentCount}</span>
+              </div>
+              <div style="background: #e2e8f0; padding: 1.5rem; border-radius: 8px; text-align: center;">
+                <h4 style="color: #4a5568; margin: 0 0 0.5rem 0; font-size: 0.9rem;">Total</h4>
+                <span style="color: #4a5568; font-size: 2rem; font-weight: 700;">${students.length}</span>
+              </div>
+            </div>
+            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);">
+              <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="background: #10b981; color: white;">
+                    <th style="padding: 1rem; text-align: left;">Roll No</th>
+                    <th style="padding: 1rem; text-align: left;">Student Name</th>
+                    <th style="padding: 1rem; text-align: left;">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${studentsHTML}
+                </tbody>
+              </table>
+            </div>
+          `
+
+          reportResults.innerHTML = reportHTML
+          reportResults.style.display = "block"
+        }
+
+        // Logout function
+        function logout() {
+          localStorage.removeItem("currentUser")
+          currentUser = null
+          showLogin()
+        }
+    </script>
+</body>
+</html>
